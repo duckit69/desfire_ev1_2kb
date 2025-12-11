@@ -246,22 +246,25 @@ def read_data_in_standard_file(connection, file_id, offset, length):
 
 
 list_applications(connection)
+data, sw1, sw2 = select_app(connection, aid1)
+print(f"data: {data} --- sw1: {sw1:02X} --- sw2: {sw2:02X}")
+
 
 #create_application(connection, aid1)
 #create_standard_file(connection, aid1, 0x01, 32)
 
-select_app(connection, aid1)
-list_files(connection)
+#select_app(connection, aid1)
+#list_files(connection)
 
 
 # Write "Hello World" to file 0x01 at offset 0
 data_to_write = list(b"Hello World")
-authenticate(connection, aid1, key_number_zero, master_key)
-#write_data_in_standard_file(connection, 0x01, 0, data_to_write) 
+#authenticate(connection, aid1, key_number_zero, master_key)
+write_data_in_standard_file(connection, 0x01, 0, data_to_write) 
 
 # Read 11 bytes from file 0x01 starting at offset 0
 #authenticate(connection, aid1, key_number_zero, master_key)
-read_data_in_standard_file(connection, 0x01, 0, 11)
+#read_data_in_standard_file(connection, 0x01, 0, 19)
 
 
 
