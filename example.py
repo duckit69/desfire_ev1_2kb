@@ -31,8 +31,11 @@ else:
     print("Auth Successed, you can manage files")
 
 # Create value file
-file_mgr.create_value_file(0x01, 0, 20, 0, True)
-file_mgr.get_value(0x01)
+file_mgr.list_files()
+
+file_mgr.delete_file(0x03)
+
+
 
 """
 # Select and authenticate to custom app

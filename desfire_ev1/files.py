@@ -24,6 +24,24 @@ class FileManager:
         print(f"Delete file {file_id} - Status: {sw1:02X} {sw2:02X}")
         return sw1 == 0x91 and sw2 == 0x00
     
+    def get_file_type(self, file_id):
+        apdu = [0x90, 0xF5, 0x00, 0x00, 0x01, file_id, 0x00]
+        data, sw1, sw2 = self.card.transmit(apdu)
+        if sw1 != 0x91 or sw2 != 0x00 or not data:
+            return None
+
+        file_type = data[0]
+        mapping = {
+            0x00: "Standard data",
+            0x01: "Backup data",
+            0x02: "Value",
+            0x03: "Linear record",
+            0x04: "Cyclic record",
+        }
+        print(f"File {file_id} type: {mapping.get(file_type, 'Unknown')} (0x{file_type:02X})")
+        return file_type
+
+    
     # Standard File
     def create_standard_file(self, file_id, file_size, comm_settings=0x00, access_rights=[0x00, 0x00]):
         """Create standard data file"""
@@ -138,13 +156,13 @@ class FileManager:
     def commit_transaction(self):
         """Validate all pending writes in current application"""
         apdu = [0x90, 0xC7, 0x00, 0x00, 0x00]
-        data, sw1, sw2 = self.transmit(apdu)
+        data, sw1, sw2 = self.card.transmit(apdu)
         print(f"Commit transaction - Status: {sw1:02X} {sw2:02X}")
         return sw1 == 0x91 and sw2 == 0x00
 
     def abort_transaction(self):
         """Cancel all pending writes in current application"""
         apdu = [0x90, 0xA7, 0x00, 0x00, 0x00]
-        data, sw1, sw2 = self.transmit(apdu)
+        data, sw1, sw2 = self.card.transmit(apdu)
         print(f"Abort transaction - Status: {sw1:02X} {sw2:02X}")
         return sw1 == 0x91 and sw2 == 0x00
