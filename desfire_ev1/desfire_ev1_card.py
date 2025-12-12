@@ -1,6 +1,6 @@
 from smartcard.System import readers
 from smartcard.util import toHexString
-from desfire_ev1.crypto import des_cbc_decrypt, des_cbc_encrypt, generate_reader_challenge, rotate_left
+from .crypto import des_cbc_decrypt, des_cbc_encrypt, generate_reader_challenge, rotate_left
 
 class DesfireCard:
     def __init__(self, reader_index=0):
