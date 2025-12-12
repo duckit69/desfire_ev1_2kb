@@ -134,3 +134,17 @@ class FileManager:
         data, sw1, sw2 = self.card.transmit(apdu)
         print(f"Clear records - Status: {sw1:02X} {sw2:02X}")
         return sw1 == 0x91 and sw2 == 0x00
+    
+    def commit_transaction(self):
+        """Validate all pending writes in current application"""
+        apdu = [0x90, 0xC7, 0x00, 0x00, 0x00]
+        data, sw1, sw2 = self.transmit(apdu)
+        print(f"Commit transaction - Status: {sw1:02X} {sw2:02X}")
+        return sw1 == 0x91 and sw2 == 0x00
+
+    def abort_transaction(self):
+        """Cancel all pending writes in current application"""
+        apdu = [0x90, 0xA7, 0x00, 0x00, 0x00]
+        data, sw1, sw2 = self.transmit(apdu)
+        print(f"Abort transaction - Status: {sw1:02X} {sw2:02X}")
+        return sw1 == 0x91 and sw2 == 0x00

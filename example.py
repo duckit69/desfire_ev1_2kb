@@ -30,6 +30,10 @@ if not ok:
 else:
     print("Auth Successed, you can manage files")
 
+# Create value file
+file_mgr.create_value_file(0x01, 0, 20, 0, True)
+file_mgr.get_value(0x01)
+
 """
 # Select and authenticate to custom app
 card.select_application(custom_application[0])

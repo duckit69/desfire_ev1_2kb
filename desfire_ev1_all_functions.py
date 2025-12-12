@@ -426,3 +426,8 @@ connection = connect_to_reader_by_type(0)
 
 list_applications(connection)
 
+select_app(connection, aid1)
+
+authenticate(connection, aid1, key_number_zero, master_key)
+
+list_files(connection)
