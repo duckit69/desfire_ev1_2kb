@@ -20,7 +20,9 @@ card.authenticate(KEY_ZERO, MASTER_KEY)
 
 # Create application
 # 0x0B Force user to authenticate before managing files
-app_mgr.create_application(custom_application[0], 0x0B)
+#app_mgr.create_application(custom_application[0], 0x0B)
+
+app_mgr.list_applications()
 
 card.select_application(custom_application[0])
 ok = card.authenticate(KEY_ZERO, MASTER_KEY)
@@ -30,20 +32,3 @@ if not ok:
 else:
     print("Auth Successed, you can manage files")
 
-# Create value file
-file_mgr.list_files()
-
-file_mgr.delete_file(0x03)
-
-
-
-"""
-# Select and authenticate to custom app
-card.select_application(custom_application[0])
-card.authenticate(KEY_ZERO, MASTER_KEY)
-
-# Create file and write data
-file_mgr.create_standard_file(0x01, 32)
-file_mgr.write_data(0x01, 0, list(b"Hello DESFIRE!"))
-file_mgr.read_data(0x01, 0, 14)
-"""
