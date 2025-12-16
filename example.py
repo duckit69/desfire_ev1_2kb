@@ -1,7 +1,7 @@
 from  desfire_ev1.desfire_ev1_card import DesfireCard
 from  desfire_ev1.applications import ApplicationManager
 from  desfire_ev1.files import FileManager
-from pic_codec import CardImageCodec
+from ui.pic_codec import CardImageCodec
 import cv2 
 
 # Constants
