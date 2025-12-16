@@ -242,6 +242,26 @@ class MainWindow(QMainWindow):
 
         print(f"Write complete: {offset} bytes written")
         return offset
+    
+    def read_compressed_image(self, file_id):
+        # Read header (4 bytes)
+        header = self.fileManager.read_data(file_id, offset=0, length=4)
+        meta_len = header[0] | (header[1] << 8) | (header[2] << 16) | (header[3] << 24)
+        
+        # Read metadata
+        meta_bytes = self.fileManager.read_data(file_id, offset=4, length=meta_len)
+        meta = json.loads(bytes(meta_bytes).decode('utf-8'))
+        
+        # Read data (rest of file after metadata)
+        data_offset = 4 + meta_len
+        # You may want to store data length in meta for dynamic reading
+        data_length = 994  # Known length
+        data = self.fileManager.read_data(file_id, offset=data_offset, length=data_length)
+        
+        return bytes(data), meta
+
+        # Read
+        #data, meta = read_compressed_image(file_mgr, 0x01)
 # Run the application
 if __name__ == "__main__":
     app = QApplication(sys.argv)
