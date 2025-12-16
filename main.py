@@ -192,18 +192,22 @@ class MainWindow(QMainWindow):
     def handle_form_data(self, data):
         """Process submitted form data"""
         # data recieved here will be written in the card
-        print(data)
-        return
         self.applicationManager.create_application(self.driver_app_id)
         self.desfireCardManager.select_application(self.driver_app_id)
         self.fileManager.create_standard_file(self.driver_file_id, 20)
         self.fileManager.create_standard_file(self.driver_pic_file_id, 1200)
         self.desfireCardManager.authenticate(self.key_number_zero, self.master_key_value)
-        self.write_compressed_image(self.fileManager, self.driver_pic_file_id, data['image_vec'], data['image_metaData'])
+        self.write_driver_infos(self.driver_file_id, data['driver_name'], data['driver_license'])
+        self.write_compressed_image(self.driver_pic_file_id, data['image_vec'], data['image_metaData'])
         
         # TODO: Save to database, process, etc.
 
-    def write_driver_infos(self, appid, file_mgr, file_id, data, meta):
+    def write_driver_infos(self, file_id, driver_name, driver_license):
+        data = driver_name + driver_license
+        byte_data = list(data.encode('utf-8'))
+        self.fileManager.write_data(self.driver_file_id, 0, byte_data)
+
+    def write_compressed_image(self, file_id, data, meta):
         # Serialize metadata
         meta_json = json.dumps(meta).encode('utf-8')
         meta_len = len(meta_json)
@@ -230,43 +234,7 @@ class MainWindow(QMainWindow):
             
             # Write chunk at current offset
             print(f"Writing chunk {chunk_num}: {chunk_len} bytes at offset {offset}")
-            file_mgr.write_data(file_id, offset=offset, data=chunk)
-            
-            # Update offset for next chunk
-            offset += chunk_len
-            chunk_num += 1
-
-        print(f"Write complete: {offset} bytes written")
-        return offset
-
-    def write_compressed_image(self, appid, file_mgr, file_id, data, meta):
-        # Serialize metadata
-        meta_json = json.dumps(meta).encode('utf-8')
-        meta_len = len(meta_json)
-        
-        # Pack: [meta_length (4 bytes)] + [meta_json] + [data]
-        meta_len_bytes = [
-            meta_len & 0xFF,
-            (meta_len >> 8) & 0xFF,
-            (meta_len >> 16) & 0xFF,
-            (meta_len >> 24) & 0xFF
-        ]
-        
-        payload = meta_len_bytes + list(meta_json) + list(data)
-        total_bytes = len(payload)
-        offset = 0
-        chunk_num = 1
-        
-        chunk_size = 47
-        while offset < total_bytes:
-            # Get chunk (last chunk may be smaller)
-            end = min(offset + chunk_size, total_bytes)
-            chunk = payload[offset:end]
-            chunk_len = len(chunk)
-            
-            # Write chunk at current offset
-            print(f"Writing chunk {chunk_num}: {chunk_len} bytes at offset {offset}")
-            file_mgr.write_data(file_id, offset=offset, data=chunk)
+            self.fileManager.write_data(file_id, offset=offset, data=chunk)
             
             # Update offset for next chunk
             offset += chunk_len
