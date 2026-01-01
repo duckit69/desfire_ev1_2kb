@@ -17,9 +17,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("File Manager Interface")
         self.setGeometry(100, 100, 600, 600)
         # Initialize app file card managers
-        self.desfireCardManager = DesfireCard() 
-        self.applicationManager = ApplicationManager(self.desfireCardManager)
-        self.fileManager = FileManager(self.desfireCardManager)
+        #self.desfireCardManager = DesfireCard() 
+        #self.applicationManager = ApplicationManager(self.desfireCardManager)
+        #self.fileManager = FileManager(self.desfireCardManager)
         # key numbers
         self.key_number_zero = [0x00]
         self.master_key_value = bytes([0x00] * 8)
@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
             "tag": 1,
             "site_type": 9
             },
-                        {
+            {
             "id": 2,
             "content": "Laptop Dell XPS",
             "source": "Oran",
@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
             "tag": 1,
             "site_type": 9
             },
-                        {
+            {
             "id": 3,
             "content": "Mouse Logitech MX",
             "source": "Oran",
@@ -197,17 +197,16 @@ class MainWindow(QMainWindow):
         self.fileManager.create_standard_file(self.driver_file_id, 20)
         self.fileManager.create_standard_file(self.driver_pic_file_id, 1200)
         self.desfireCardManager.authenticate(self.key_number_zero, self.master_key_value)
-        self.write_driver_infos(self.driver_file_id, data['driver_name'], data['driver_license'])
-        self.write_compressed_image(self.driver_pic_file_id, data['image_vec'], data['image_metaData'])
-        
+        self.write_driver_infos(data['driver_name'], data['driver_license'])
+        self.write_compressed_image(data['image_vec'], data['image_metaData'])
         # TODO: Save to database, process, etc.
 
-    def write_driver_infos(self, file_id, driver_name, driver_license):
+    def write_driver_infos(self, driver_name, driver_license):
         data = driver_name + driver_license
         byte_data = list(data.encode('utf-8'))
         self.fileManager.write_data(self.driver_file_id, 0, byte_data)
 
-    def write_compressed_image(self, file_id, data, meta):
+    def write_compressed_image(self, data, meta):
         # Serialize metadata
         meta_json = json.dumps(meta).encode('utf-8')
         meta_len = len(meta_json)
@@ -224,7 +223,6 @@ class MainWindow(QMainWindow):
         total_bytes = len(payload)
         offset = 0
         chunk_num = 1
-        
         chunk_size = 47
         while offset < total_bytes:
             # Get chunk (last chunk may be smaller)
@@ -234,7 +232,7 @@ class MainWindow(QMainWindow):
             
             # Write chunk at current offset
             print(f"Writing chunk {chunk_num}: {chunk_len} bytes at offset {offset}")
-            self.fileManager.write_data(file_id, offset=offset, data=chunk)
+            self.fileManager.write_data(self.driver_pic_file_id, offset=offset, data=chunk)
             
             # Update offset for next chunk
             offset += chunk_len
@@ -243,20 +241,20 @@ class MainWindow(QMainWindow):
         print(f"Write complete: {offset} bytes written")
         return offset
     
-    def read_compressed_image(self, file_id):
+    def read_compressed_image(self):
         # Read header (4 bytes)
-        header = self.fileManager.read_data(file_id, offset=0, length=4)
+        header = self.fileManager.read_data(self.driver_pic_file_id, offset=0, length=4)
         meta_len = header[0] | (header[1] << 8) | (header[2] << 16) | (header[3] << 24)
         
         # Read metadata
-        meta_bytes = self.fileManager.read_data(file_id, offset=4, length=meta_len)
+        meta_bytes = self.fileManager.read_data(self.driver_pic_file_id, offset=4, length=meta_len)
         meta = json.loads(bytes(meta_bytes).decode('utf-8'))
         
         # Read data (rest of file after metadata)
         data_offset = 4 + meta_len
         # You may want to store data length in meta for dynamic reading
         data_length = 994  # Known length
-        data = self.fileManager.read_data(file_id, offset=data_offset, length=data_length)
+        data = self.fileManager.read_data(self.driver_pic_file_id, offset=data_offset, length=data_length)
         
         return bytes(data), meta
 
