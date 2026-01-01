@@ -26,8 +26,10 @@ class MainWindow(QMainWindow):
         # application ids 
         # 0x00 0x00 0x01 Driver application 0x01 fileId information ( name + license)
         self.driver_app_id = [0x00, 0x00, 0x01]
+        self.mission_app_id = [0x00, 0x00, 0x02]
         self.driver_file_id = 0x01
         self.driver_pic_file_id = 0x02
+        self.mission_file_id = 0x01
         # Load articles/trucks from database
         self.articles_from_db = self.load_articles_from_database()
         self.trucks_from_db = self.load_trucks_from_database()
@@ -85,7 +87,7 @@ class MainWindow(QMainWindow):
             "tag": 1,
             "site_type": 9
             },
-                        {
+            {
             "id": 4,
             "content": "Keyboard Mechanical",
             "source": "Oran",
@@ -193,13 +195,21 @@ class MainWindow(QMainWindow):
         """Process submitted form data"""
         # data recieved here will be written in the card
         self.applicationManager.create_application(self.driver_app_id)
+        self.applicationManager.create_application(self.mission_app_id)
+
+        # Select and fill driver app
         self.desfireCardManager.select_application(self.driver_app_id)
         self.fileManager.create_standard_file(self.driver_file_id, 20)
         self.fileManager.create_standard_file(self.driver_pic_file_id, 1200)
         self.desfireCardManager.authenticate(self.key_number_zero, self.master_key_value)
         self.write_driver_infos(data['driver_name'], data['driver_license'])
         self.write_compressed_image(data['image_vec'], data['image_metaData'])
-        # TODO: Save to database, process, etc.
+
+        # Select and fill mission app
+        self.desfireCardManager.select_application(self.mission_app_id)
+        self.fileManager.create_standard_file(self.mission_file_id, 57)
+        self.write_mission_information(data['mission_id'], data['truck_id'], data['source'], data['destination'])
+        # TODO: Save to database, process, etc.   
 
     def write_driver_infos(self, driver_name, driver_license):
         data = driver_name + driver_license
@@ -260,6 +270,46 @@ class MainWindow(QMainWindow):
 
         # Read
         #data, meta = read_compressed_image(file_mgr, 0x01)
+
+    def write_mission(self, file_mgr, mission_id, truck_id, status, source, destination):
+        """Write complete mission information"""
+        # Pad strings to fixed size
+        mission_data = list(mission_id.ljust(8, ' ').encode('utf-8')[:8])
+        truck_data = list(truck_id.ljust(8, ' ').encode('utf-8')[:8])
+        source_data = list(source.ljust(20, ' ').encode('utf-8')[:20])
+        dest_data = list(destination.ljust(20, ' ').encode('utf-8')[:20])
+        
+        # Combine all data
+        complete_data = mission_data + truck_data + [status] + source_data + dest_data  
+              
+        # Write to file
+        file_mgr.write_data(MISSION_FILE_ID, 0, mission_data)
+        print(f"Mission written: Truck {truck_id}, Status {status}")
+
+    def update_mission_status(self, file_mgr, new_status):
+        """Update only the status byte"""
+        file_mgr.write_data(MISSION_FILE_ID, 8, [new_status])
+        print(f"Status updated to: {new_status}")
+
+
+    def read_mission(self, file_mgr):
+        """Read and parse mission data"""
+        data = file_mgr.read_data(MISSION_FILE_ID, 0, MISSION_FILE_SIZE)
+        
+        truck_id = bytes(data[0:8]).decode('utf-8').strip()
+        status = data[8]
+        source = bytes(data[9:29]).decode('utf-8').strip()
+        destination = bytes(data[29:49]).decode('utf-8').strip()
+        
+        status_names = {0: "Pending", 1: "In Transit", 2: "Delivered"}
+        
+        print(f"Truck: {truck_id}")
+        print(f"Status: {status_names.get(status, 'Unknown')}")
+        print(f"From: {source}")
+        print(f"To: {destination}")
+        
+        return {'truck_id': truck_id, 'status': status, 'source': source, 'destination': destination}
+
 # Run the application
 if __name__ == "__main__":
     app = QApplication(sys.argv)

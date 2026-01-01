@@ -11,7 +11,6 @@ KEY_ZERO = [0x00]
 custom_application = [ [0x11, 0x11, 0x11], [0x11, 0x11, 0x12] ]
 
 
-
 imageManager = CardImageCodec()
 
 compressedVector, metaData = imageManager.compress("id_picture.jpg")
