@@ -32,6 +32,11 @@ class MainWindow(QMainWindow):
         self.mission_app_id = [0x00, 0x00, 0x02]
         self.mission_file_id = 0x01
         self.mission_file_size = 57
+        # Articles related information
+        self.article_app_id = [0x00, 0x00, 0x03]
+        self.article_file_id = 0x01
+        self.article_record_size = 8
+        self.article_number = 50 # can be modified later 
         # Load articles/trucks from database
         self.articles_from_db = self.load_articles_from_database()
         self.trucks_from_db = self.load_trucks_from_database()
@@ -290,18 +295,19 @@ class MainWindow(QMainWindow):
               
         # Write to file
         # right now we are writing everything but it can be improved to only write what is needed
-        self.fileManager.write_data(self.mission_file_id, 0, complete_data)
-        print(f"Mission written: Truck {truck_id}, Status {status}")
+        flag = self.fileManager.write_data(self.mission_file_id, 0, complete_data)
+        print(f"Mission written: Truck {truck_id}, Status {status} Flag {flag}")
+        return mission_id
 
-    def update_mission_status(self, file_mgr, new_status):
+    def update_mission_status(self, new_status):
         """Update only the status byte"""
-        file_mgr.write_data(self.mission_file_id, 8, [new_status])
+        self.fileManager.write_data(self.mission_file_id, 8, [new_status])
         print(f"Status updated to: {new_status}")
 
 
-    def read_mission(self, file_mgr):
+    def read_mission(self):
         """Read and parse mission data"""
-        data = file_mgr.read_data(self.mission_file_id, 0, self.mission_file_size)
+        data = self.fileManager.read_data(self.mission_file_id, 0, self.mission_file_size)
         
         truck_id = bytes(data[0:8]).decode('utf-8').strip()
         status = data[8]
@@ -316,6 +322,8 @@ class MainWindow(QMainWindow):
         print(f"To: {destination}")
         
         return {'truck_id': truck_id, 'status': status, 'source': source, 'destination': destination}
+    
+
 
 # Run the application
 if __name__ == "__main__":
