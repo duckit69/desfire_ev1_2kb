@@ -20,20 +20,20 @@ The PICC contains these application IDs (AIDs):
 * 000002 – Mission application
 * 000003 – Articles application
 
-All applications currently use **DES key 0x00..00** for development and allow operations after authenticating with key 0.
+All applications currently use **DES key 0x00** and allow operations after authenticating with key 0.
 
 ### Driver Application (`000001`)
 
-**Driver info file** (`file_id = 0x01`, Standard data):  
+**Driver info file** (`file_id = 0x01`, Standard file):  
 Fixed string: driver_name + driver_license (20 bytes)
 
-**Driver photo file** (`file_id = 0x02`, Standard data):
+**Driver photo file** (`file_id = 0x02`, Standard file):
 
 [meta_length 4B] + [JSON metadata] + [compressed image data]
 
 ### Mission Application (`000002`)
 
-**Mission file** (`file_id = 0x01`, Standard data, 57 bytes):
+**Mission file** (`file_id = 0x01`, Standard file, 57 bytes):
 
 | Field        | Offset | Size | Description                    |
 |--------------|--------|------|--------------------------------|
@@ -50,38 +50,33 @@ Fixed string: driver_name + driver_license (20 bytes)
 record_size = 8 bytes, max_records = 50
 
 Record layout:
-* Bytes 0-3: 4-letter code (e.g. "LAPT")
+* Bytes 0-3: 4-letters code ("LAPT")    
 * Bytes 4-7: quantity (32-bit little-endian)
 
 
 ## Smart Card Operations
 
 ### Format Card
-**1:** Select master app 000000
-
-**2:** Authenticate with PICC master key (DES all zeros)
-
-**3:** Send FormatPICC (0xFC)
+1. Select master app 000000
+2. Authenticate with PICC master key (DES all zeros)
+3. Send FormatPICC (0xFC)
 
 ### Source Interface (Write Mission)
 
-Create apps 000001/000002/000003 .
+Create apps 000001/000002/000003.
 
 For each app:
-* Select app
-* Create files
-* Authenticate (key 0)
-* Write data
-
+1. Select app
+2. Create files
+3. Authenticate (key 0)
+4. Write data
 
 ### Destination Interface (Read + Validate)
 * Read mission (app 000002) → parse 57-byte file
 * Read driver info + photo (app 000001)
 * Read all article records (app 000003)
 * Compare mission_id against expected missions for destination
-
     * If valid: display driver + articles
-
     * On approve: update status byte to 2 (Delivered)
 
 
@@ -89,7 +84,7 @@ For each app:
 
 ## DesfireCard
 ├── connect via PC/SC  
-├── authenticate(key_number, key_value) → DES CBC challenge-response  
+├── authenticate(key_number, key_value) → DES CBC challenge/response  
 ├── select_application(aid)  
 └── format_card()
 
@@ -108,7 +103,7 @@ For each app:
 │ └── read_records(file_id, record_offset, num_records)  
 └── **Utils:** to_3bytes(), to_4bytes(), from_4bytes()
 
-utils.py: byte <-> integer conversion
+utils.py: byte from/to integer conversion
 
 crypto.py: DES CBC encrypt/decrypt
 
@@ -121,7 +116,6 @@ python main.py
 ## Requirements:
 
 * PC/SC smart card reader
-
 * MIFARE DESFire EV1 (EV2/EV3 compatible)
 
 # Workflow
