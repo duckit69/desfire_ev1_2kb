@@ -14,7 +14,7 @@ class DestinationInterface(QWidget):
     back_clicked = pyqtSignal()
     card_validated = pyqtSignal(dict)  # Signal when card is successfully validated
 
-    def __init__(self, destination_point="Customer Site XYZ", expected_missions=None):
+    def __init__(self, destination_point="djelfa", expected_missions=None):
         super().__init__()
         self.destination_point = destination_point
         self.expected_missions = expected_missions if expected_missions else []
@@ -42,7 +42,7 @@ class DestinationInterface(QWidget):
         main_layout.addWidget(destination_label)
         
         # === Box 1: Expected Missions ===
-        missions_box = QGroupBox("Expected Missions")
+        self.missions_box = QGroupBox("Expected Missions")
         missions_layout = QVBoxLayout()
         
         self.missions_table = QTableWidget()
@@ -52,11 +52,11 @@ class DestinationInterface(QWidget):
         self.missions_table.setEditTriggers(QTableWidget.NoEditTriggers)  # Read-only
         
         missions_layout.addWidget(self.missions_table)
-        missions_box.setLayout(missions_layout)
-        main_layout.addWidget(missions_box)
+        self.missions_box.setLayout(missions_layout)
+        main_layout.addWidget(self.missions_box)
         
         # === Card Reading Section ===
-        card_section = QGroupBox("Card Validation")
+        self.card_section = QGroupBox("Card Validation")
         card_layout = QVBoxLayout()
         
         # Read card button
@@ -71,8 +71,8 @@ class DestinationInterface(QWidget):
         self.status_label.setStyleSheet("padding: 10px; font-size: 12px;")
         card_layout.addWidget(self.status_label)
         
-        card_section.setLayout(card_layout)
-        main_layout.addWidget(card_section)
+        self.card_section.setLayout(card_layout)
+        main_layout.addWidget(self.card_section)
         
         # === Box 2: Card Information (hidden by default) ===
         self.card_info_box = QGroupBox("Card Information")
@@ -211,6 +211,9 @@ class DestinationInterface(QWidget):
             return
         
         # Valid mission - display data
+        self.missions_box.setVisible(False)
+        self.card_section.setVisible(False)       
+
         self.current_card_data = card_data
         self.display_card_info(card_data)
         
@@ -309,7 +312,9 @@ class DestinationInterface(QWidget):
         self.current_card_data = None
         self.status_label.setText("Waiting for card...")
         self.status_label.setStyleSheet("padding: 10px; font-size: 12px;")
-        
+
+        self.missions_box.setVisible(True)
+        self.card_section.setVisible(True)        
     def on_back_clicked(self):
         """Emit signal to go back to main interface"""
         self.back_clicked.emit()

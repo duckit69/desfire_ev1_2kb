@@ -20,9 +20,9 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 600, 600)
         
         # Initialize app file card managers
-        #self.desfireCardManager = DesfireCard() 
-        #self.applicationManager = ApplicationManager(self.desfireCardManager)
-        #self.fileManager = FileManager(self.desfireCardManager)
+        self.desfireCardManager = DesfireCard() 
+        self.applicationManager = ApplicationManager(self.desfireCardManager)
+        self.fileManager = FileManager(self.desfireCardManager)
         
         # key numbers
         self.key_number_zero = [0x00]
@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
         self.missions_from_db = self.load_missions_from_database()  # Add this
         
         # Destination point (can be configured)
-        self.destination_point = "Customer Site XYZ"
+        self.destination_point = "djelfa"
 
         # Create central widget with stacked layout
         central_widget = QWidget()
@@ -87,30 +87,30 @@ class MainWindow(QMainWindow):
         """Load articles from your database"""
         # TODO: Replace with actual API call
         return [
-            {"id": 1, "content": "EarPhones", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-            {"id": 2, "content": "Laptop Dell XPS", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-            {"id": 3, "content": "Mouse Logitech MX", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-            {"id": 4, "content": "Keyboard Mechanical", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
+            {"id": 1, "content": "ARC01", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
+            {"id": 2, "content": "ARC02", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
+            {"id": 3, "content": "ARC03", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
+            {"id": 4, "content": "ARC04", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
         ]
         
     def load_trucks_from_database(self):
         """Load trucks from your database"""
         # TODO: Replace with actual API call
         return [
-            {"id": 1, "model": "Master Renault1", "license_plate": "5555-213-17", "available": "Free"},
-            {"id": 2, "model": "Master Renault2", "license_plate": "5555-213-17", "available": "Free"},
-            {"id": 3, "model": "Master Renault3", "license_plate": "5555-213-17", "available": "Free"},
-            {"id": 4, "model": "Master Renault4", "license_plate": "5555-213-17", "available": "Free"},
+            {"id": 1, "model": "MR01", "license_plate": "TRCK1317", "available": "Free"},
+            {"id": 2, "model": "MR02", "license_plate": "TRCK1317", "available": "Free"},
+            {"id": 3, "model": "MR03", "license_plate": "TRCK1317", "available": "Free"},
+            {"id": 4, "model": "MR04", "license_plate": "TRCK1317", "available": "Free"},
         ]
         
     def load_missions_from_database(self):
         """Load expected missions from database"""
         # TODO: Replace with actual API call
         return [
-            {"mission_id": "MSN00001", "truck_id": "TRK00123", "source": "Warehouse A", "destination": "Customer Site XYZ", "status": "In Transit"},
-            {"mission_id": "MSN00002", "truck_id": "TRK00456", "source": "Depot B", "destination": "Customer Site XYZ", "status": "In Transit"},
-            {"mission_id": "MSN00003", "truck_id": "TRK00789", "source": "Factory C", "destination": "Distribution Center", "status": "In Transit"},
-            {"mission_id": "MSN00004", "truck_id": "TRK00999", "source": "Warehouse D", "destination": "Customer Site XYZ", "status": "In Transit"},
+            {"mission_id": "MSN00001", "truck_id": "TRK00123", "source": "Oran", "destination": "djelfa", "status": "In Transit"},
+            {"mission_id": "MSN00002", "truck_id": "TRK00456", "source": "Chlef", "destination": "djelfa", "status": "In Transit"},
+            {"mission_id": "MSN00003", "truck_id": "TRK00789", "source": "Biskra", "destination": "djelfa", "status": "In Transit"},
+            {"mission_id": "MSN00004", "truck_id": "TRK00999", "source": "Medya", "destination": "djelfa", "status": "In Transit"},
         ]
         
     def create_base_interface(self):
@@ -152,6 +152,8 @@ class MainWindow(QMainWindow):
     def on_destination_clicked(self):
         """Switch to destination interface"""
         print("Destination button clicked - switching to destination interface")
+        # Reset destination interface before showing
+        self.destination_interface.reset_interface()
         # Refresh missions before showing
         self.destination_interface.set_expected_missions(self.missions_from_db)
         self.stacked_widget.setCurrentIndex(2)
@@ -168,6 +170,9 @@ class MainWindow(QMainWindow):
     def show_base_interface(self):
         """Return to base interface"""
         print("Returning to base interface")
+            # Reset destination interface when leaving
+        if hasattr(self, 'destination_interface'):
+            self.destination_interface.reset_interface()
         self.stacked_widget.setCurrentIndex(0)
         
     def on_read_card_at_destination(self):
@@ -243,6 +248,7 @@ class MainWindow(QMainWindow):
         self.desfireCardManager.authenticate(self.key_number_zero, self.master_key_value)
         self.write_driver_infos(data['driver_name'], data['driver_license'])
         self.write_compressed_image(data['image_vec'], data['image_metaData'])
+        print("Wrote Driver Info")
 
         # Write mission info
         self.desfireCardManager.select_application(self.mission_app_id)
@@ -251,14 +257,16 @@ class MainWindow(QMainWindow):
         truck_id = data['truck']['license_plate'] if data['truck'] else "UNKNOWN"
         status = 0  # Pending
         self.write_mission_information(truck_id, status, data['source'], data['destination'])
+        print(f"Wrote Mission info")
         
         # Write articles
         self.desfireCardManager.select_application(self.article_app_id)
-        self.fileManager.create_linear_record_file(self.article_file_id, self.article_record_size, self.article_number)
         self.desfireCardManager.authenticate(self.key_number_zero, self.master_key_value)
+        self.fileManager.create_linear_record_file(self.article_file_id, self.article_record_size, self.article_number)
         for article in data['articles']:
             self.write_article(article['content'][:4].upper(), int(article['quantity']))
 
+        print("wrote articles infos")
     # === Helper functions ===
     
     def write_driver_infos(self, driver_name, driver_license):
@@ -318,7 +326,24 @@ class MainWindow(QMainWindow):
         destination_data = list(destination.ljust(20, ' ').encode('utf-8')[:20])
         
         complete_data = mission_data + truck_data + [status] + source_data + destination_data
-        self.fileManager.write_data(self.mission_file_id, 0, complete_data)
+        
+        print(f"Complete data length: {len(complete_data)} bytes")
+        
+        # Split into two chunks: first 47 bytes, then remaining
+        chunk1 = complete_data[:47]  # Bytes 0-46 (47 bytes)
+        chunk2 = complete_data[47:]  # Bytes 47-56 (10 bytes)
+        
+        print(f"Chunk 1 (47 bytes): {chunk1}")
+        print(f"Chunk 2 ({len(chunk2)} bytes): {chunk2}")
+        
+        # Write first chunk at offset 0
+        self.fileManager.write_data(self.mission_file_id, offset=0, data=chunk1)
+        print(f"Written chunk 1: 47 bytes at offset 0")
+        
+        # Write second chunk at offset 47
+        self.fileManager.write_data(self.mission_file_id, offset=47, data=chunk2)
+        print(f"Written chunk 2: {len(chunk2)} bytes at offset 47")
+        
         print(f"Mission written: {mission_id}")
         return mission_id
 
@@ -354,6 +379,7 @@ class MainWindow(QMainWindow):
         quantity_data = to_4bytes(quantity)
         record_data = code_data + quantity_data
         self.fileManager.write_record(self.article_file_id, 0, record_data)
+        self.fileManager.commit_transaction()
         
     def read_all_articles(self):
         """Read all articles from card"""
