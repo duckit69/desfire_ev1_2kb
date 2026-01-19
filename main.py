@@ -87,10 +87,10 @@ class MainWindow(QMainWindow):
         """Load articles from your database"""
         # TODO: Replace with actual API call
         return [
-            {"id": 1, "content": "ARC01", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-            {"id": 2, "content": "ARC02", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-            {"id": 3, "content": "ARC03", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-            {"id": 4, "content": "ARC04", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
+            {"id": 1, "content": "AR01", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
+            {"id": 2, "content": "AR02", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
+            {"id": 3, "content": "AR03", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
+            {"id": 4, "content": "AR04", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
         ]
         
     def load_trucks_from_database(self):
