@@ -72,7 +72,9 @@ class MainWindow(QMainWindow):
         # Create destination interface
         self.destination_interface = DestinationInterface(
             destination_point=self.destination_point,
-            expected_missions=self.missions_from_db
+            expected_missions=self.missions_from_db,
+            card_manager=self.desfireCardManager,
+            file_manager=self.fileManager
         )
         self.destination_interface.back_clicked.connect(self.show_base_interface)
         self.destination_interface.read_card_btn.clicked.connect(self.on_read_card_at_destination)
@@ -191,9 +193,9 @@ class MainWindow(QMainWindow):
             driver_data = self.read_driver_info()
             
             # Read driver photo
-            photo_data, photo_meta = self.read_compressed_image()
-            driver_data['photo_data'] = photo_data
-            driver_data['photo_meta'] = photo_meta
+            #photo_data, photo_meta = self.read_compressed_image()
+            #driver_data['photo_data'] = photo_data
+            #driver_data['photo_meta'] = photo_meta
             
             # Read articles
             self.desfireCardManager.select_application(self.article_app_id)

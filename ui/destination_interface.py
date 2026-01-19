@@ -4,9 +4,12 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QLabel, QGroupBox, QFormLayout, 
                              QTableWidget, QTableWidgetItem, QTextEdit,
                              QMessageBox)
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt, pyqtSignal
 from .pic_codec import CardImageCodec, HashManager
+import json
+import numpy as np
+import cv2
 
 
 class DestinationInterface(QWidget):
@@ -14,10 +17,12 @@ class DestinationInterface(QWidget):
     back_clicked = pyqtSignal()
     card_validated = pyqtSignal(dict)  # Signal when card is successfully validated
 
-    def __init__(self, destination_point="djelfa", expected_missions=None):
+    def __init__(self, destination_point="djelfa", expected_missions=None, card_manager=None, file_manager=None):
         super().__init__()
         self.destination_point = destination_point
         self.expected_missions = expected_missions if expected_missions else []
+        self.card_manager = card_manager  # Store card manager reference
+        self.file_manager = file_manager  # Store file manager reference
         self.image_processor = CardImageCodec()
         self.hashManager = HashManager()
         self.current_card_data = None
@@ -166,14 +171,70 @@ class DestinationInterface(QWidget):
         
     def on_read_card(self):
         """Handle card reading - to be connected to actual card reader"""
-        # TODO: Connect to actual card reading logic
-        # For now, this is a placeholder that will be connected externally
         self.status_label.setText("Reading card...")
         self.status_label.setStyleSheet("padding: 10px; font-size: 12px; color: blue;")
-        
-        # Emit signal or call external function
-        # The main application should connect this to the card reader
         print("Card read initiated - waiting for card data...")
+    
+    def read_data_with_additional_frames(self, file_id, offset, length):
+        """Read data from card and handle additional frames (0xAF status)"""
+        from desfire_ev1.utils import to_3bytes
+        
+        offset_bytes = to_3bytes(offset)
+        length_bytes = to_3bytes(length)
+        
+        # Initial read
+        apdu = [0x90, 0xBD, 0x00, 0x00, 0x07, file_id] + offset_bytes + length_bytes + [0x00]
+        data, sw1, sw2 = self.card_manager.transmit(apdu)
+        
+        all_data = list(data)
+        
+        # Keep fetching additional frames while sw2 == 0xAF
+        frame_count = 1
+        while sw2 == 0xAF:
+            apdu_af = [0x90, 0xAF, 0x00, 0x00, 0x00]
+            data, sw1, sw2 = self.card_manager.transmit(apdu_af)
+            all_data.extend(data)
+            frame_count += 1
+            print(f"  Fetched additional frame {frame_count}, total: {len(all_data)} bytes")
+        
+        print(f"  ✓ Read complete: {len(all_data)} bytes in {frame_count} frame(s)")
+        return all_data
+    
+    def read_compressed_image_from_card(self):
+        """Read compressed image from card with additional frame handling"""
+        driver_pic_file_id = 0x02
+        
+        try:
+            print(f"\n📸 Reading image from card...")
+            
+            # Read header (4 bytes)
+            header = self.read_data_with_additional_frames(driver_pic_file_id, offset=0, length=4)
+            meta_len = header[0] | (header[1] << 8) | (header[2] << 16) | (header[3] << 24)
+            
+            print(f"  Metadata length: {meta_len} bytes")
+            
+            # Read metadata
+            meta_bytes = self.read_data_with_additional_frames(driver_pic_file_id, offset=4, length=meta_len)
+            meta = json.loads(bytes(meta_bytes).decode('utf-8'))
+            
+            print(f"  Metadata: {meta}")
+            
+            # Read image data using stored length
+            data_offset = 4 + meta_len
+            data_length = meta.get('data_length', 996)
+            
+            print(f"  Reading image data: {data_length} bytes from offset {data_offset}")
+            data = self.read_data_with_additional_frames(driver_pic_file_id, offset=data_offset, length=data_length)
+            
+            print(f"  ✓ Image data read: {len(data)} bytes")
+            
+            return bytes(data), meta
+            
+        except Exception as e:
+            print(f"❌ Error reading compressed image: {e}")
+            import traceback
+            traceback.print_exc()
+            return None, None
         
     def validate_and_display_card(self, card_data):
         """
@@ -210,10 +271,10 @@ class DestinationInterface(QWidget):
             self.card_info_box.setVisible(False)
             return
         
-        # Valid mission - display data
+        # Valid mission - hide missions table and card validation section
         self.missions_box.setVisible(False)
-        self.card_section.setVisible(False)       
-
+        self.card_section.setVisible(False)
+        
         self.current_card_data = card_data
         self.display_card_info(card_data)
         
@@ -221,7 +282,7 @@ class DestinationInterface(QWidget):
         self.status_label.setStyleSheet("padding: 10px; font-size: 14px; color: green; font-weight: bold;")
         
     def display_card_info(self, card_data):
-        """Display card information in the interface"""
+        """Display card information including photo read directly from card"""
         # Show the card info box
         self.card_info_box.setVisible(True)
         
@@ -238,20 +299,79 @@ class DestinationInterface(QWidget):
         self.driver_name_label.setText(driver['name'])
         self.driver_license_label.setText(driver.get('license', '-'))
         
-        # Driver photo
-        if 'photo_data' in driver and driver['photo_data']:
+        # === Debug: Check if managers are available ===
+        print(f"\n🔍 DEBUG display_card_info:")
+        print(f"  card_manager: {self.card_manager}")
+        print(f"  file_manager: {self.file_manager}")
+
+        # === Read and display photo directly from card ===
+        if self.card_manager and self.file_manager:
             try:
-                # Decompress and display photo
-                image = self.image_processor.decompress(
-                    driver['photo_data'],
-                    driver['photo_meta']
-                )
-                pixmap = QPixmap.fromImage(image)
-                scaled_pixmap = pixmap.scaled(200, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                self.driver_photo_label.setPixmap(scaled_pixmap)
-                self.driver_photo_label.setText("")
+                print("\n📸 Loading driver photo from card...")
+                
+                # Select driver application and authenticate
+                print("  Selecting driver app...")
+                self.card_manager.select_application([0x00, 0x00, 0x01])
+                print("  Authenticating...")
+                auth_success = self.card_manager.authenticate([0x00], bytes([0x00] * 8))
+                print(f"  Auth result: {auth_success}")
+                # Read compressed image with additional frame handling
+                print("  Reading compressed image...")
+                compressed_data, meta = self.read_compressed_image_from_card()
+                
+                if compressed_data and meta:
+                    print(f"  ✓ Got data: {len(compressed_data)} bytes")
+                    print(f"  ✓ Meta: {meta}")
+                    print(f"  Decompressing...")                    
+                    # Decompress using pic_codec
+                    recon_img = self.image_processor.decompress(compressed_data, meta)
+                    print(f"  ✓ Decompressed shape: {recon_img.shape}")
+                    # Convert OpenCV BGR image to QImage
+                    height, width, channel = recon_img.shape
+                    bytes_per_line = 3 * width
+                    
+                    # OpenCV uses BGR, Qt uses RGB - convert
+                    rgb_image = cv2.cvtColor(recon_img, cv2.COLOR_BGR2RGB)
+                    
+                    q_image = QImage(rgb_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+                    
+                    # Create pixmap and scale for display
+                    pixmap = QPixmap.fromImage(q_image)
+                    scaled_pixmap = pixmap.scaled(200, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    
+                    self.driver_photo_label.setPixmap(scaled_pixmap)
+                    self.driver_photo_label.setText("")
+                    
+                    print("  ✓ Photo displayed successfully")
+                else:
+                    self.driver_photo_label.setText("No photo data")
+                    
             except Exception as e:
-                self.driver_photo_label.setText(f"Error loading photo: {str(e)}")
+                print(f"❌ Error loading photo: {e}")
+                import traceback
+                traceback.print_exc()
+                self.driver_photo_label.setText(f"Error: {str(e)}")
+        else:
+            # Fallback: use photo_data from card_data if card/file managers not available
+            if 'photo_data' in driver and driver['photo_data']:
+                try:
+                    image = self.image_processor.decompress(
+                        driver['photo_data'],
+                        driver['photo_meta']
+                    )
+                    
+                    # Convert to QPixmap (assuming decompress returns OpenCV image)
+                    height, width, channel = image.shape
+                    bytes_per_line = 3 * width
+                    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    q_image = QImage(rgb_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+                    
+                    pixmap = QPixmap.fromImage(q_image)
+                    scaled_pixmap = pixmap.scaled(200, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    self.driver_photo_label.setPixmap(scaled_pixmap)
+                    self.driver_photo_label.setText("")
+                except Exception as e:
+                    self.driver_photo_label.setText(f"Error: {str(e)}")
         
         # Articles
         articles = card_data['articles']
@@ -274,9 +394,6 @@ class DestinationInterface(QWidget):
         )
         
         if reply == QMessageBox.Yes:
-            # TODO: Update mission status to DELIVERED on card
-            # TODO: Update database
-            
             self.card_validated.emit({
                 'action': 'approved',
                 'data': self.current_card_data
@@ -312,9 +429,11 @@ class DestinationInterface(QWidget):
         self.current_card_data = None
         self.status_label.setText("Waiting for card...")
         self.status_label.setStyleSheet("padding: 10px; font-size: 12px;")
-
+        
+        # Show missions and card validation sections again
         self.missions_box.setVisible(True)
-        self.card_section.setVisible(True)        
+        self.card_section.setVisible(True)
+        
     def on_back_clicked(self):
         """Emit signal to go back to main interface"""
         self.back_clicked.emit()
