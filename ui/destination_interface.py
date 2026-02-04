@@ -10,13 +10,14 @@ from .pic_codec import CardImageCodec, HashManager
 import json
 import numpy as np
 import cv2
+import requests
 
 
 class DestinationInterface(QWidget):
     # Signal to go back to main interface
     back_clicked = pyqtSignal()
     card_validated = pyqtSignal(dict)  # Signal when card is successfully validated
-
+    
     def __init__(self, destination_point="djelfa", expected_missions=None, card_manager=None, file_manager=None):
         super().__init__()
         self.destination_point = destination_point
@@ -26,7 +27,8 @@ class DestinationInterface(QWidget):
         self.image_processor = CardImageCodec()
         self.hashManager = HashManager()
         self.current_card_data = None
-        
+        self.mission_list = self.load_missions_from_database()
+
         self.init_ui()
         self.load_expected_missions()
         
@@ -151,12 +153,20 @@ class DestinationInterface(QWidget):
         
         self.card_info_box.setLayout(card_info_layout)
         main_layout.addWidget(self.card_info_box)
-        
+    
+            
+    def load_missions_from_database(self):
+        """Load expected missions from database"""
+        url = "http://127.0.0.1:8000/api/CoreAPI/mission/list?status=0"
+        response = requests.get(url)
+        mission_list = response.json()
+        return mission_list
+    
     def load_expected_missions(self):
         """Load expected missions into the table"""
         # Filter missions for this destination
         filtered_missions = [
-            m for m in self.expected_missions 
+            m for m in self.mission_list 
             if m.get('destination') == self.destination_point
         ]
         
@@ -167,7 +177,14 @@ class DestinationInterface(QWidget):
             self.missions_table.setItem(row, 1, QTableWidgetItem(mission.get('truck_id', '-')))
             self.missions_table.setItem(row, 2, QTableWidgetItem(mission.get('source', '-')))
         
-        print(f"Loaded {len(filtered_missions)} missions for {self.destination_point}")
+    
+    def find_mission_by_mission_id(self):
+        mission_list = self.load_missions_from_database()
+        for m in mission_list:
+            if m['mission_id'] == self.mission_id_label.text():
+                return m
+        
+        return None
         
     def on_read_card(self):
         """Handle card reading - to be connected to actual card reader"""
@@ -298,11 +315,6 @@ class DestinationInterface(QWidget):
         driver = card_data['driver']
         self.driver_name_label.setText(driver['name'])
         self.driver_license_label.setText(driver.get('license', '-'))
-        
-        # === Debug: Check if managers are available ===
-        print(f"\n🔍 DEBUG display_card_info:")
-        print(f"  card_manager: {self.card_manager}")
-        print(f"  file_manager: {self.file_manager}")
 
         # === Read and display photo directly from card ===
         if self.card_manager and self.file_manager:
@@ -400,6 +412,18 @@ class DestinationInterface(QWidget):
             })
             
             QMessageBox.information(self, "Success", "Delivery approved!")
+
+            mission = self.find_mission_by_mission_id()
+            url = "http://127.0.0.1:8000/api/CoreAPI/mission/update/" + str(mission['id'])
+
+            data = {
+                "source": mission['source'],
+                "destination": mission['destination'],
+                "status": "2"
+            }
+
+            response = requests.patch(url, json=data)
+
             self.reset_interface()
         
     def on_reject_delivery(self):
@@ -421,6 +445,16 @@ class DestinationInterface(QWidget):
             })
             
             QMessageBox.warning(self, "Rejected", "Delivery rejected!")
+            mission = self.find_mission_by_mission_id()
+            url = "http://127.0.0.1:8000/api/CoreAPI/mission/update/" + str(mission['id'])
+
+            data = {
+                "source": mission['source'],
+                "destination": mission['destination'],
+                "status": "3"
+            }
+
+            response = requests.patch(url, json=data)
             self.reset_interface()
         
     def reset_interface(self):

@@ -12,6 +12,8 @@ from desfire_ev1.files import FileManager
 from desfire_ev1.desfire_ev1_card import DesfireCard
 import json
 
+import requests
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -87,33 +89,27 @@ class MainWindow(QMainWindow):
         
     def load_articles_from_database(self):
         """Load articles from your database"""
-        # TODO: Replace with actual API call
-        return [
-            {"id": 1, "content": "AR01", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-            {"id": 2, "content": "AR02", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-            {"id": 3, "content": "AR03", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-            {"id": 4, "content": "AR04", "source": "Oran", "destination": "Chlef", "site_id": 1, "tag": 1, "site_type": 9},
-        ]
+        url = "http://127.0.0.1:8000/api/CoreAPI/article/list"
+        response = requests.get(url)
+        artcile_list = response.json()
+        return artcile_list
         
     def load_trucks_from_database(self):
         """Load trucks from your database"""
         # TODO: Replace with actual API call
-        return [
-            {"id": 1, "model": "MR01", "license_plate": "TRCK1317", "available": "Free"},
-            {"id": 2, "model": "MR02", "license_plate": "TRCK1317", "available": "Free"},
-            {"id": 3, "model": "MR03", "license_plate": "TRCK1317", "available": "Free"},
-            {"id": 4, "model": "MR04", "license_plate": "TRCK1317", "available": "Free"},
-        ]
+        url = "http://127.0.0.1:8000/api/CoreAPI/vehicule/list"
+        response = requests.get(url)
+        truck_list = response.json()
+        return truck_list
         
     def load_missions_from_database(self):
         """Load expected missions from database"""
         # TODO: Replace with actual API call
-        return [
-            {"mission_id": "MSN00001", "truck_id": "TRK00123", "source": "Oran", "destination": "djelfa", "status": "In Transit"},
-            {"mission_id": "MSN00002", "truck_id": "TRK00456", "source": "Chlef", "destination": "djelfa", "status": "In Transit"},
-            {"mission_id": "MSN00003", "truck_id": "TRK00789", "source": "Biskra", "destination": "djelfa", "status": "In Transit"},
-            {"mission_id": "MSN00004", "truck_id": "TRK00999", "source": "Medya", "destination": "djelfa", "status": "In Transit"},
-        ]
+        url = "http://127.0.0.1:8000/api/CoreAPI/mission/list"
+        response = requests.get(url)
+        mission_list = response.json()
+        return mission_list
+
         
     def create_base_interface(self):
         """Create the original base interface"""
@@ -148,12 +144,10 @@ class MainWindow(QMainWindow):
         
     def on_source_clicked(self):
         """Switch to source interface"""
-        print("Source button clicked - switching to source interface")
         self.stacked_widget.setCurrentIndex(1)
         
     def on_destination_clicked(self):
         """Switch to destination interface"""
-        print("Destination button clicked - switching to destination interface")
         # Reset destination interface before showing
         self.destination_interface.reset_interface()
         # Refresh missions before showing
@@ -162,26 +156,21 @@ class MainWindow(QMainWindow):
         
     def on_format_card_clicked(self):
         """Format the card"""
-        print("Format Card button clicked")
         master_app_id = [0x00, 0x00, 0x00]
         self.desfireCardManager.select_application(master_app_id)
         self.desfireCardManager.authenticate(self.key_number_zero, self.master_key_value)
         self.desfireCardManager.format_card()
-        print("Format is done")
         
     def show_base_interface(self):
         """Return to base interface"""
-        print("Returning to base interface")
-            # Reset destination interface when leaving
+        # Reset destination interface when leaving
         if hasattr(self, 'destination_interface'):
             self.destination_interface.reset_interface()
         self.stacked_widget.setCurrentIndex(0)
         
     def on_read_card_at_destination(self):
         """Read card and validate at destination checkpoint"""
-        try:
-            print("Reading card at destination...")
-            
+        try:            
             # Read mission data
             self.desfireCardManager.select_application(self.mission_app_id)
             self.desfireCardManager.authenticate(self.key_number_zero, self.master_key_value)
@@ -191,11 +180,6 @@ class MainWindow(QMainWindow):
             self.desfireCardManager.select_application(self.driver_app_id)
             self.desfireCardManager.authenticate(self.key_number_zero, self.master_key_value)
             driver_data = self.read_driver_info()
-            
-            # Read driver photo
-            #photo_data, photo_meta = self.read_compressed_image()
-            #driver_data['photo_data'] = photo_data
-            #driver_data['photo_meta'] = photo_meta
             
             # Read articles
             self.desfireCardManager.select_application(self.article_app_id)
@@ -213,7 +197,6 @@ class MainWindow(QMainWindow):
             self.destination_interface.validate_and_display_card(card_data)
             
         except Exception as e:
-            print(f"Error reading card: {e}")
             self.destination_interface.status_label.setText(f"❌ Error reading card: {str(e)}")
             self.destination_interface.status_label.setStyleSheet("padding: 10px; font-size: 12px; color: red;")
         
@@ -221,9 +204,7 @@ class MainWindow(QMainWindow):
         """Handle delivery approval or rejection"""
         action = action_data['action']
         data = action_data['data']
-        
-        print(f"Delivery {action}: {data['mission']['mission_id']}")
-        
+                
         if action == 'approved':
             # Update mission status to DELIVERED
             self.desfireCardManager.select_application(self.mission_app_id)
@@ -256,9 +237,10 @@ class MainWindow(QMainWindow):
         self.desfireCardManager.select_application(self.mission_app_id)
         self.fileManager.create_standard_file(self.mission_file_id, 57)
         self.desfireCardManager.authenticate(self.key_number_zero, self.master_key_value)
-        truck_id = data['truck']['license_plate'] if data['truck'] else "UNKNOWN"
+        truck_id = data['truck']['id'] if data['truck'] else "UNKNOWN"
+        license_plate = data['truck']['license_plate']
         status = 0  # Pending
-        self.write_mission_information(truck_id, status, data['source'], data['destination'])
+        self.write_mission_information(license_plate, truck_id, status, data['source'], data['destination'])
         print(f"Wrote Mission info")
         
         # Write articles
@@ -318,35 +300,35 @@ class MainWindow(QMainWindow):
         
         return bytes(data), meta
 
-    def write_mission_information(self, truck_id, status, source, destination):
+    def write_mission_information(self,license_plate, truck_id, status, source, destination):
         """Write mission info to card"""
-        mission_id = "MSN00001"  # TODO: Get from API
-        
+        url = "http://127.0.0.1:8000/api/CoreAPI/mission/create"
+        data = {
+            "truck": int(truck_id),
+            "source": source,
+            "destination": destination,
+            "status": "0"
+        }
+        response = requests.post(url, json=data)
+        data = response.json()
+        mission_id = data['mission_id'] 
         mission_data = list(mission_id.ljust(8, ' ').encode('utf-8')[:8])
-        truck_data = list(truck_id.ljust(8, ' ').encode('utf-8')[:8])
+        truck_data = list(license_plate.ljust(8, ' ').encode('utf-8')[:8])
         source_data = list(source.ljust(20, ' ').encode('utf-8')[:20])
         destination_data = list(destination.ljust(20, ' ').encode('utf-8')[:20])
         
+        # 1 build data to be written in card
         complete_data = mission_data + truck_data + [status] + source_data + destination_data
-        
-        print(f"Complete data length: {len(complete_data)} bytes")
-        
-        # Split into two chunks: first 47 bytes, then remaining
+                
+        # 2 Split into two chunks: first 47 bytes, then remaining
         chunk1 = complete_data[:47]  # Bytes 0-46 (47 bytes)
         chunk2 = complete_data[47:]  # Bytes 47-56 (10 bytes)
         
-        print(f"Chunk 1 (47 bytes): {chunk1}")
-        print(f"Chunk 2 ({len(chunk2)} bytes): {chunk2}")
-        
-        # Write first chunk at offset 0
+        # 3 Write first chunk at offset 0
         self.fileManager.write_data(self.mission_file_id, offset=0, data=chunk1)
-        print(f"Written chunk 1: 47 bytes at offset 0")
-        
-        # Write second chunk at offset 47
+
+        # 4 Write second chunk at offset 47
         self.fileManager.write_data(self.mission_file_id, offset=47, data=chunk2)
-        print(f"Written chunk 2: {len(chunk2)} bytes at offset 47")
-        
-        print(f"Mission written: {mission_id}")
         return mission_id
 
     def update_mission_status(self, new_status):
@@ -405,3 +387,8 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
+
+
+# Evaluation:
+#   Dashboard
+#   Exploit UHF
