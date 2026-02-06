@@ -17,7 +17,7 @@ class FileManager:
             return file_ids
         return []
     
-    def delete_file(self, file_id):
+    def delete_file(self, file_id): 
         """Delete file"""
         apdu = [0x90, 0xDF, 0x00, 0x00, 0x01, file_id, 0x00]
         data, sw1, sw2 = self.card.transmit(apdu)
